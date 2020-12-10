@@ -93,7 +93,7 @@ QString FieldTagMimeProcessor::tagFromMimeTag(const QString &mimeTag) {
 		const auto userId = _controller->session().userId();
 		auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
 		if (!match.hasMatch()
-			|| match.capturedRef(1).toInt() != userId) {
+			|| match.capturedView(1).toInt() != userId) {
 			return QString();
 		}
 		return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
@@ -378,7 +378,7 @@ InlineBotQuery ParseInlineBotQuery(
 					< inlineUsernameStart + inlineUsernameLength)) {
 				return InlineBotQuery();
 			}
-			auto username = text.midRef(inlineUsernameStart, inlineUsernameLength);
+			auto username = QStringView(text).mid(inlineUsernameStart, inlineUsernameLength);
 			if (username != result.username) {
 				result.username = username.toString();
 				if (const auto peer = session->data().peerByUsername(result.username)) {
@@ -678,8 +678,8 @@ void MessageLinksParser::apply(
 	const auto current = _list.current();
 	const auto computeLink = [&](const LinkRange &range) {
 		return range.custom.isEmpty()
-			? text.midRef(range.start, range.length)
-			: range.custom.midRef(0);
+			? QStringView(text).mid(range.start, range.length)
+			: QStringView(range.custom);
 	};
 	const auto changed = [&] {
 		if (current.size() != count) {

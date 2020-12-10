@@ -326,7 +326,8 @@ void DocumentOpenClickHandler::Open(
 				location.accessDisable();
 			});
 			const auto path = location.name();
-			if (Core::MimeTypeForFile(path).name().startsWith("image/") && QImageReader(path).canRead()) {
+			if (Core::MimeTypeForFile(QFileInfo(path)).name().startsWith("image/")
+				&& QImageReader(path).canRead()) {
 				Core::App().showDocument(data, context);
 				return;
 			}
@@ -547,7 +548,7 @@ void DocumentData::setattributes(
 			// We don't want LTR/RTL mark/embedding/override/isolate chars
 			// in filenames, because they introduce a security issue, when
 			// an executable "Fil[x]gepj.exe" may look like "Filexe.jpeg".
-			QChar controls[] = {
+			ushort controls[] = {
 				0x200E, // LTR Mark
 				0x200F, // RTL Mark
 				0x202A, // LTR Embedding
@@ -558,7 +559,7 @@ void DocumentData::setattributes(
 				0x2067, // RTL Isolate
 			};
 			for (const auto ch : controls) {
-				_filename = std::move(_filename).replace(ch, "_");
+				_filename = std::move(_filename).replace(QChar(ch), "_");
 			}
 		}, [&](const MTPDdocumentAttributeHasStickers &data) {
 			_flags |= Flag::HasAttachedStickers;
@@ -1501,7 +1502,7 @@ bool DocumentData::isAudioFile() const {
 		}
 		return false;
 	}
-	const auto left = _mimeString.midRef(prefix.size()).toString();
+	const auto left = _mimeString.mid(prefix.size());
 	const auto types = { qstr("x-wav"), qstr("wav"), qstr("mp4") };
 	return ranges::contains(types, left);
 }

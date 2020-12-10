@@ -311,7 +311,7 @@ void Launcher::init() {
 	// and https://github.com/telegramdesktop/tdesktop/issues/7549
 	// and https://github.com/telegramdesktop/tdesktop/issues/948
 	// more info: https://doc.qt.io/qt-5/qguiapplication.html#isFallbackSessionManagementEnabled
-	QApplication::setFallbackSessionManagementEnabled(false);
+	//QApplication::setFallbackSessionManagementEnabled(false);
 
 	initHook();
 }
@@ -404,7 +404,7 @@ void Launcher::prepareSettings() {
 	if (!path.isEmpty()) {
 		auto info = QFileInfo(path);
 		if (info.isSymLink()) {
-			info = info.symLinkTarget();
+			info = QFileInfo(info.symLinkTarget());
 		}
 		if (info.exists()) {
 			const auto dir = info.absoluteDir().absolutePath();

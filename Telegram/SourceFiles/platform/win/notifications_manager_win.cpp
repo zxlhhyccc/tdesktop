@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/notifications_manager_win.h"
 
 #include "window/notifications_utilities.h"
+#include "base/platform/base_platform_info.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_event_filter.h"
 #include "platform/win/windows_dlls.h"
@@ -98,7 +99,7 @@ inline HRESULT wrap_GetActivationFactory(_In_ HSTRING activatableClassId, _Inout
 }
 
 bool init() {
-	if (QSysInfo::windowsVersion() < QSysInfo::WV_WINDOWS8) {
+	if (!Platform::IsWindows8OrGreater()) {
 		return false;
 	}
 	if ((Dlls::SetCurrentProcessExplicitAppUserModelID == nullptr)

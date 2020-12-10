@@ -206,7 +206,7 @@ void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 		static const auto simple = u"\n- "_q;
 		static const auto separator = QString::fromUtf8("\n\xE2\x80\xA2 ");
 		auto result = QString::fromUtf8(changes).trimmed();
-		if (result.startsWith(simple.midRef(1))) {
+		if (result.startsWith(QStringView(simple).mid(1))) {
 			result = separator.mid(1) + result.mid(simple.size() - 1);
 		}
 		return result.replace(simple, separator);

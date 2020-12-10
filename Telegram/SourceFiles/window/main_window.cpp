@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_calls.h" // st::callShadow
 
-#include <QtWidgets/QDesktopWidget>
 #include <QtCore/QMimeData>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
@@ -658,12 +657,12 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 }
 
 int MainWindow::maximalExtendBy() const {
-	auto desktop = QDesktopWidget().availableGeometry(this);
+	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
 	return std::max(desktop.width() - inner().width(), 0);
 }
 
 bool MainWindow::canExtendNoMove(int extendBy) const {
-	auto desktop = QDesktopWidget().availableGeometry(this);
+	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
 	auto inner = geometry().marginsRemoved(_padding);
 	auto innerRight = (inner.x() + inner.width() + extendBy);
 	auto desktopRight = (desktop.x() + desktop.width());
@@ -671,7 +670,7 @@ bool MainWindow::canExtendNoMove(int extendBy) const {
 }
 
 int MainWindow::tryToExtendWidthBy(int addToWidth) {
-	auto desktop = QDesktopWidget().availableGeometry(this);
+	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
 	auto inner = geometry();
 	accumulate_min(
 		addToWidth,

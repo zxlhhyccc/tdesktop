@@ -210,7 +210,7 @@ void CodesFeedString(SessionController *window, const QString &text) {
 	secret += text.toLower();
 	int size = secret.size(), from = 0;
 	while (size > from) {
-		auto piece = secret.midRef(from);
+		auto piece = QStringView(secret).mid(from);
 		auto found = false;
 		for (const auto &[key, method] : codes) {
 			if (piece == key) {

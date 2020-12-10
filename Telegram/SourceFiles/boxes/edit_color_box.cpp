@@ -902,9 +902,9 @@ void EditColorBox::updateResultField() {
 	auto text = QString();
 	auto addHex = [&text](int value) {
 		if (value >= 0 && value <= 9) {
-			text.append('0' + value);
+			text.append(QChar('0' + value));
 		} else if (value >= 10 && value <= 15) {
-			text.append('a' + (value - 10));
+			text.append(QChar('a' + (value - 10)));
 		}
 	};
 	auto addValue = [addHex](int value) {

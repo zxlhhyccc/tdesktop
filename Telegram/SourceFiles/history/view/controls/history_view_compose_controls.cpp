@@ -1939,7 +1939,7 @@ void ComposeControls::initWebpageProcess() {
 		if (ShowWebPagePreview(*previewData)) {
 			if (const auto till = (*previewData)->pendingTill) {
 				t = tr::lng_preview_loading(tr::now);
-				d = (*previewLinks).splitRef(' ').at(0).toString();
+				d = QStringView(*previewLinks).split(' ').at(0).toString();
 
 				const auto timeout = till - base::unixtime::now();
 				previewTimer->callOnce(

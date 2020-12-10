@@ -777,7 +777,7 @@ bool DcOptions::loadFromFile(const QString &path) {
 		return false;
 	}
 	QTextStream stream(&f);
-	stream.setCodec("UTF-8");
+	stream.setEncoding(QStringConverter::Utf8);
 	while (!stream.atEnd()) {
 		auto line = stream.readLine();
 		auto components = line.split(QRegularExpression(R"(\s)"), base::QStringSkipEmptyParts);
@@ -839,7 +839,7 @@ bool DcOptions::writeToFile(const QString &path) const {
 		return false;
 	}
 	QTextStream stream(&f);
-	stream.setCodec("UTF-8");
+	stream.setEncoding(QStringConverter::Utf8);
 
 	ReadLocker lock(this);
 	for (const auto &item : _data) {

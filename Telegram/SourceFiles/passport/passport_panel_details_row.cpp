@@ -404,11 +404,11 @@ QDate ValidateDate(const QString &value) {
 	}
 	auto result = QDate();
 	const auto readInt = [](const QString &value) {
-		auto ref = value.midRef(0);
-		while (!ref.isEmpty() && ref.at(0) == '0') {
-			ref = ref.mid(1);
+		auto view = QStringView(value);
+		while (!view.isEmpty() && view.at(0) == '0') {
+			view = view.mid(1);
 		}
-		return ref.toInt();
+		return view.toInt();
 	};
 	result.setDate(
 		readInt(match.captured(3)),
@@ -508,9 +508,9 @@ void DateInput::correctValue(
 	if (accumulated > _maxValue
 		|| (limit == _maxDigits && oldLength > _maxDigits)) {
 		if (oldCursor > limit) {
-			_putNext.fire('0' + (accumulated % 10));
+			_putNext.fire(QChar('0' + (accumulated % 10)));
 		} else {
-			_putNext.fire(0);
+			_putNext.fire(QChar());
 		}
 	}
 }
@@ -632,11 +632,11 @@ bool DateRow::setFocusFast() {
 
 int DateRow::number(const object_ptr<DateInput> &field) const {
 	const auto text = field->getLastText();
-	auto ref = text.midRef(0);
-	while (!ref.isEmpty() && ref.at(0) == '0') {
-		ref = ref.mid(1);
+	auto view = QStringView(text);
+	while (!view.isEmpty() && view.at(0) == '0') {
+		view = view.mid(1);
 	}
-	return ref.toInt();
+	return view.toInt();
 }
 
 int DateRow::day() const {

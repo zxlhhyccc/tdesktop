@@ -546,7 +546,7 @@ bool ParseCommonMap(
 			if ((*version).isString()) {
 				const auto string = (*version).toString();
 				if (const auto index = string.indexOf(':'); index > 0) {
-					return string.midRef(0, index).toULongLong();
+					return QStringView(string).mid(0, index).toULongLong();
 				}
 				return string.toULongLong();
 			} else if ((*version).isDouble()) {

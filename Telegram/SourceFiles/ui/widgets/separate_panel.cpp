@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QWindow>
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QDesktopWidget>
 
 namespace Ui {
 

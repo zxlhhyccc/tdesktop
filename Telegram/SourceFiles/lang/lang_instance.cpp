@@ -134,7 +134,7 @@ bool ValueParser::readTag() {
 
 	if (_currentTagReplacer.isEmpty()) {
 		_currentTagReplacer = QString(4, TextCommand);
-		_currentTagReplacer[1] = TextCommandLangTag;
+		_currentTagReplacer[1] = QChar(TextCommandLangTag);
 	}
 	_currentTagReplacer[2] = QChar(0x0020 + _currentTagIndex);
 

@@ -2577,10 +2577,10 @@ void History::cacheTopPromotion(
 	}
 }
 
-QStringRef History::topPromotionType() const {
+QStringView History::topPromotionType() const {
 	return topPromotionAboutShown()
-		? _topPromotedType.midRef(5)
-		: _topPromotedType.midRef(0);
+		? QStringView(_topPromotedType).mid(5)
+		: QStringView(_topPromotedType);
 }
 
 bool History::topPromotionAboutShown() const {

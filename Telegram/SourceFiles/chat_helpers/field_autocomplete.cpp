@@ -84,7 +84,7 @@ private:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
 	void mousePressEvent(QMouseEvent *e) override;
@@ -236,19 +236,19 @@ void FieldAutocomplete::showFiltered(
 
 	query = query.toLower();
 	auto type = Type::Stickers;
-	auto plainQuery = query.midRef(0);
+	auto plainQuery = QStringView(query);
 	switch (query.at(0).unicode()) {
 	case '@':
 		type = Type::Mentions;
-		plainQuery = query.midRef(1);
+		plainQuery = plainQuery.mid(1);
 		break;
 	case '#':
 		type = Type::Hashtags;
-		plainQuery = query.midRef(1);
+		plainQuery = plainQuery.mid(1);
 		break;
 	case '/':
 		type = Type::BotCommands;
-		plainQuery = query.midRef(1);
+		plainQuery = plainQuery.mid(1);
 		break;
 	}
 	bool resetScroll = (_type != type || _filter != plainQuery);
@@ -1143,7 +1143,7 @@ void FieldAutocomplete::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	}
 }
 
-void FieldAutocomplete::Inner::enterEventHook(QEvent *e) {
+void FieldAutocomplete::Inner::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
 }
 

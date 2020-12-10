@@ -3276,7 +3276,7 @@ void ApiWrap::requestMessageAfterDate(
 	// So we request a message with offset_date = desired_date - 1 and add_offset = -1.
 	// This should give us the first message with date >= desired_date.
 	auto offsetId = 0;
-	auto offsetDate = static_cast<int>(base::QDateToDateTime(date).toTime_t()) - 1;
+	auto offsetDate = static_cast<int>(base::QDateToDateTime(date).toSecsSinceEpoch()) - 1;
 	auto addOffset = -1;
 	auto limit = 1;
 	auto maxId = 0;

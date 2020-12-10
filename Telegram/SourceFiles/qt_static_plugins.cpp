@@ -7,6 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include <QtCore/QtPlugin>
 
+// #TODO Qt6 where are the resources?..
+int qInitResources_qstyle() {
+	return 0;
+}
+int qInitResources_qmessagebox() {
+	return 0;
+}
+int qInitResources_openglblacklists() {
+	return 0;
+}
+int qInitResources_cursors() {
+	return 0;
+}
+
 #ifndef DESKTOP_APP_USE_PACKAGED
 Q_IMPORT_PLUGIN(QWebpPlugin)
 

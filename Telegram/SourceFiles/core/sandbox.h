@@ -85,7 +85,7 @@ private:
 	bool nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
-		long *result) override;
+		qintptr *result) override;
 	void processPostponedCalls(int level);
 	void singleInstanceChecked();
 	void launchApplication();

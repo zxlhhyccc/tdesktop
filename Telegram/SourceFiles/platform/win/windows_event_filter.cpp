@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/win/windows_dlls.h"
 #include "platform/win/specific_win.h"
+#include "base/platform/base_platform_info.h"
 #include "core/sandbox.h"
 #include "core/core_settings.h"
 #include "core/application.h"
@@ -110,7 +111,7 @@ EventFilter::EventFilter(not_null<MainWindow*> window) : _window(window) {
 bool EventFilter::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
-		long *result) {
+		qintptr *result) {
 	return Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 		const auto msg = static_cast<MSG*>(message);
 		if (msg->message == WM_ENDSESSION) {
@@ -138,7 +139,7 @@ bool EventFilter::customWindowFrameEvent(
 		LRESULT *result) {
 	switch (msg) {
 	case WM_NCPAINT: {
-		if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8) return false;
+		if (Platform::IsWindows8OrGreater()) return false;
 		if (result) *result = 0;
 	} return true;
 

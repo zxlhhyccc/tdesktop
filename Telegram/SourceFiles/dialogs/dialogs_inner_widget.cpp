@@ -1673,7 +1673,7 @@ void InnerWidget::updateDialogRow(
 	}
 }
 
-void InnerWidget::enterEventHook(QEvent *e) {
+void InnerWidget::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
 }
 
@@ -1898,7 +1898,7 @@ void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
 	}
 }
 
-void InnerWidget::onHashtagFilterUpdate(QStringRef newFilter) {
+void InnerWidget::onHashtagFilterUpdate(QStringView newFilter) {
 	if (newFilter.isEmpty() || newFilter.at(0) != '#' || _searchInChat) {
 		_hashtagFilter = QString();
 		if (!_hashtagResults.empty()) {
@@ -1917,7 +1917,7 @@ void InnerWidget::onHashtagFilterUpdate(QStringRef newFilter) {
 	if (!recent.isEmpty()) {
 		_hashtagResults.reserve(qMin(recent.size(), kHashtagResultsLimit));
 		for (const auto &tag : recent) {
-			if (tag.first.startsWith(_hashtagFilter.midRef(1), Qt::CaseInsensitive)
+			if (tag.first.startsWith(QStringView(_hashtagFilter).mid(1), Qt::CaseInsensitive)
 				&& tag.first.size() + 1 != newFilter.size()) {
 				_hashtagResults.push_back(std::make_unique<HashtagResult>(tag.first));
 				if (_hashtagResults.size() == kHashtagResultsLimit) break;
@@ -2340,7 +2340,7 @@ void InnerWidget::searchInChat(Key key, PeerData *from) {
 	_searchFromPeer = from;
 	if (_searchInChat) {
 		_controller->closeFolder();
-		onHashtagFilterUpdate(QStringRef());
+		onHashtagFilterUpdate(QStringView());
 		_cancelSearchInChat->show();
 		refreshSearchInChatLabel();
 	} else {

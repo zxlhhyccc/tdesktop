@@ -96,7 +96,7 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void CountryInput::enterEventHook(QEvent *e) {
+void CountryInput::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
 }
 
@@ -326,7 +326,7 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void CountrySelectBox::Inner::enterEventHook(QEvent *e) {
+void CountrySelectBox::Inner::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
 }
 

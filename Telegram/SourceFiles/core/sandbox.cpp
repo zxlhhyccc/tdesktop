@@ -376,7 +376,7 @@ void Sandbox::readClients() {
 			QString cmds(QString::fromLatin1(i->second));
 			int32 from = 0, l = cmds.length();
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
-				QStringRef cmd(&cmds, from, to - from);
+				auto cmd = QStringView(cmds).mid(from, to - from);
 				if (cmd.startsWith(qsl("CMD:"))) {
 					execExternal(cmds.mid(from + 4, to - from - 4));
 					const auto response = qsl("RES:%1;").arg(QApplication::applicationPid()).toLatin1();
@@ -559,7 +559,7 @@ void Sandbox::processPostponedCalls(int level) {
 bool Sandbox::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
-		long *result) {
+		qintptr *result) {
 	registerEnterFromEventLoop();
 	return false;
 }

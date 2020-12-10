@@ -108,11 +108,11 @@ private:
 
 int Number(not_null<TimePart*> field) {
 	const auto text = field->getLastText();
-	auto ref = text.midRef(0);
-	while (!ref.isEmpty() && ref.at(0) == '0') {
-		ref = ref.mid(1);
+	auto view = QStringView(text);
+	while (!view.isEmpty() && view.at(0) == '0') {
+		view = view.mid(1);
 	}
-	return ref.toInt();
+	return view.toInt();
 }
 
 class TimeInput final : public Ui::RpWidget {
@@ -172,11 +172,11 @@ QTime ValidateTime(const QString &value) {
 		return QTime();
 	}
 	const auto readInt = [](const QString &value) {
-		auto ref = value.midRef(0);
-		while (!ref.isEmpty() && ref.at(0) == '0') {
-			ref = ref.mid(1);
+		auto view = QStringView(value);
+		while (!view.isEmpty() && view.at(0) == '0') {
+			view = view.mid(1);
 		}
-		return ref.toInt();
+		return view.toInt();
 	};
 	return QTime(readInt(match.captured(1)), readInt(match.captured(2)));
 }
@@ -281,9 +281,9 @@ void TimePart::correctValue(
 	if (accumulated > _maxValue
 		|| (limit == _maxDigits && oldLength > _maxDigits)) {
 		if (oldCursor > limit) {
-			_putNext.fire('0' + (accumulated % 10));
+			_putNext.fire(QChar('0' + (accumulated % 10)));
 		} else {
-			_putNext.fire(0);
+			_putNext.fire(QChar());
 		}
 	}
 }

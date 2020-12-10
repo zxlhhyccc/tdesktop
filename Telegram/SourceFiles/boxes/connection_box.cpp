@@ -532,8 +532,8 @@ void ProxyRow::showMenu() {
 			_deleteClicks.fire({});
 		});
 	}
-	const auto parentTopLeft = window()->mapToGlobal({ 0, 0 });
-	const auto buttonTopLeft = _menuToggle->mapToGlobal({ 0, 0 });
+	const auto parentTopLeft = window()->mapToGlobal(QPoint());
+	const auto buttonTopLeft = _menuToggle->mapToGlobal(QPoint());
 	const auto parent = QRect(parentTopLeft, window()->size());
 	const auto button = QRect(buttonTopLeft, _menuToggle->size());
 	const auto bottom = button.y()

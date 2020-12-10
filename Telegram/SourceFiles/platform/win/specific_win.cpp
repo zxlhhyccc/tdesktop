@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QOperatingSystemVersion>
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QDesktopWidget>
 #include <QtGui/QDesktopServices>
 #include <QtGui/QWindow>
 #include <qpa/qplatformnativeinterface.h>
@@ -158,7 +157,7 @@ QRect psDesktopRect() {
 			GetMonitorInfo(hMonitor, &info);
 			_monitorRect = QRect(info.rcWork.left, info.rcWork.top, info.rcWork.right - info.rcWork.left, info.rcWork.bottom - info.rcWork.top);
 		} else {
-			_monitorRect = QApplication::desktop()->availableGeometry(App::wnd());
+			_monitorRect = (App::wnd()->screen() ? App::wnd()->screen() : QApplication::primaryScreen())->availableGeometry();
 		}
 	}
 	return _monitorRect;

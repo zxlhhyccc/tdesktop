@@ -425,7 +425,7 @@ void CloudManager::requestLanguageAndSwitch(
 
 void CloudManager::sendSwitchingToLanguageRequest() {
 	if (!_api) {
-		_switchingToLanguageId = -1;
+		_switchingToLanguageId = QString();
 		return;
 	}
 	_api->request(_switchingToLanguageRequest).cancel();

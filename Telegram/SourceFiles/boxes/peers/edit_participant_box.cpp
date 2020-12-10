@@ -696,7 +696,7 @@ void EditRestrictedBox::showRestrictUntil() {
 			highlighted,
 			[this](const QDate &date) {
 				setRestrictUntil(
-					static_cast<int>(base::QDateToDateTime(date).toTime_t()));
+					static_cast<int>(base::QDateToDateTime(date).toSecsSinceEpoch()));
 			}),
 		Ui::LayerOption::KeepOther);
 	_restrictUntilBox->setMaxDate(

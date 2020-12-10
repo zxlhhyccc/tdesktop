@@ -1803,7 +1803,7 @@ Utf8String FormatDateTime(
 	if (!date) {
 		return Utf8String();
 	}
-	const auto value = QDateTime::fromTime_t(date);
+	const auto value = QDateTime::fromSecsSinceEpoch(date);
 	return (QString("%1") + dateSeparator + "%2" + dateSeparator + "%3"
 		+ separator + "%4" + timeSeparator + "%5" + timeSeparator + "%6"
 	).arg(value.date().day(), 2, 10, QChar('0')

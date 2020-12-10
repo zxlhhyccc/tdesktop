@@ -106,7 +106,7 @@ SerializedRequest DcKeyBinder::prepareRequest(
 DcKeyBindState DcKeyBinder::handleResponse(const mtpBuffer &response) {
 	Expects(!response.isEmpty());
 
-	auto from = response.begin();
+	auto from = response.data();
 	const auto end = from + response.size();
 	auto error = MTPRpcError();
 	auto result = MTPBool();

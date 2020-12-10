@@ -77,7 +77,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 
-#include <QtWidgets/QDesktopWidget>
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
@@ -774,7 +773,7 @@ bool Application::openCustomUrl(
 		|| passcodeLocked()) {
 		return false;
 	}
-	const auto command = urlTrimmed.midRef(protocol.size(), 8192);
+	const auto command = QStringView(urlTrimmed).mid(protocol.size(), 8192);
 	const auto controller = _window ? _window->sessionController() : nullptr;
 
 	using namespace qthelp;

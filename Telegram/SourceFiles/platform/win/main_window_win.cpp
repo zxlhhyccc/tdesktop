@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "app.h"
 
-#include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QStyleFactory>
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>

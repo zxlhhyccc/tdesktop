@@ -102,9 +102,11 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEventHook(QEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override {
+		entered();
+	}
 	void enterFromChildEvent(QEvent *e, QWidget *child) override {
-		enterEventHook(e);
+		entered();
 	}
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override {
@@ -119,6 +121,7 @@ private:
 	void repaintRow(int index);
 	void preloadPhotos();
 	int rowWidth() const;
+	void entered();
 
 	void paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedRemove);
 

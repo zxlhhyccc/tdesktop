@@ -69,11 +69,11 @@ namespace {
 	return result;
 }
 
-[[nodiscard]] QStringRef Base64UrlInner(const QString &password) {
+[[nodiscard]] QStringView Base64UrlInner(const QString &password) {
 	Expects(password.size() > 2);
 
 	// Skip one or two '=' at the end of the string.
-	return password.midRef(0, [&] {
+	return QStringView(password).mid(0, [&] {
 		auto result = password.size();
 		for (auto i = 0; i != 2; ++i) {
 			const auto prev = result - 1;

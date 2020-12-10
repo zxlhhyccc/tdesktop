@@ -17,7 +17,7 @@ class MainWindow;
 
 class EventFilter : public QAbstractNativeEventFilter {
 public:
-	bool nativeEventFilter(const QByteArray &eventType, void *message, long *result);
+	bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result);
 	bool mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *result);
 
 	bool sessionLoggedOff() const {

@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 
-#include <QMatrix>
-
 namespace HistoryView::Controls {
 
 namespace {
@@ -290,7 +288,7 @@ void CircleBezier::paintCircle(
 	const auto r2 = radius + radiusDiff / 2. + idleStateDiff / 2.;
 	const auto l = _segmentLength * std::max(r1, r2) * cubicBezierFactor;
 
-	auto m = QMatrix();
+	auto m = QTransform();
 
 	const auto preparePoints = [&](int i, bool isStart) -> Points {
 		Normalize(i, _segmentsCount);

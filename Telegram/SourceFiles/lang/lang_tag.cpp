@@ -911,7 +911,7 @@ int NonZeroPartToInt(QString value) {
 		}
 	}
 	return (zeros > 0)
-		? (zeros < value.size() ? value.midRef(zeros).toInt() : 0)
+		? (zeros < value.size() ? QStringView(value).mid(zeros).toInt() : 0)
 		: (value.isEmpty() ? 0 : value.toInt());
 }
 
@@ -1008,11 +1008,11 @@ QString ReplaceTag<QString>::Replace(QString &&original, const QString &replacem
 	auto result = QString();
 	result.reserve(original.size() + replacement.size() - kTagReplacementSize);
 	if (replacementPosition > 0) {
-		result.append(original.midRef(0, replacementPosition));
+		result.append(QStringView(original).mid(0, replacementPosition));
 	}
 	result.append(replacement);
 	if (replacementPosition + kTagReplacementSize < original.size()) {
-		result.append(original.midRef(replacementPosition + kTagReplacementSize));
+		result.append(QStringView(original).mid(replacementPosition + kTagReplacementSize));
 	}
 	return result;
 }

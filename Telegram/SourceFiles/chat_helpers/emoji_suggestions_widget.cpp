@@ -492,7 +492,7 @@ void SuggestionsWidget::triggerRow(const Row &row) const {
 	_triggered.fire(row.emoji->text());
 }
 
-void SuggestionsWidget::enterEventHook(QEvent *e) {
+void SuggestionsWidget::enterEventHook(QEnterEvent *e) {
 	if (!inner().contains(mapToInner(QCursor::pos()))) {
 		clearMouseSelection();
 	}

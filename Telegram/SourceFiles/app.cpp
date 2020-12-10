@@ -89,11 +89,11 @@ namespace App {
 		result.append('+');
 		int32 sum = 0;
 		for (int32 i = 0, l = groups.size(); i < l; ++i) {
-			result.append(number.midRef(sum, groups.at(i)));
+			result.append(QStringView(number).mid(sum, groups.at(i)));
 			sum += groups.at(i);
 			if (sum < number.size()) result.append(' ');
 		}
-		if (sum < number.size()) result.append(number.midRef(sum));
+		if (sum < number.size()) result.append(QStringView(number).mid(sum));
 		return result;
 	}
 

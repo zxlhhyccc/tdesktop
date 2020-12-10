@@ -150,7 +150,7 @@ private:
 					QStringList oldlogs = working.entryList(QStringList("log_start*.txt"), QDir::Files);
 					for (QStringList::const_iterator i = oldlogs.cbegin(), e = oldlogs.cend(); i != e; ++i) {
 						QString oldlog = cWorkingDir() + *i, oldlogend = i->mid(qstr("log_start").size());
-						if (oldlogend.size() == 1 + qstr(".txt").size() && oldlogend.at(0).isDigit() && oldlogend.midRef(1) == qstr(".txt")) {
+						if (oldlogend.size() == 1 + qstr(".txt").size() && oldlogend.at(0).isDigit() && QStringView(oldlogend).mid(1) == qstr(".txt")) {
 							bool removed = QFile(*i).remove();
 							LOG(("Old start log '%1' found, deleted: %2").arg(*i).arg(Logs::b(removed)));
 						}

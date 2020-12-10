@@ -141,7 +141,7 @@ void BotKeyboard::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void BotKeyboard::enterEventHook(QEvent *e) {
+void BotKeyboard::enterEventHook(QEnterEvent *e) {
 	_lastMousePos = QCursor::pos();
 	updateSelected();
 }

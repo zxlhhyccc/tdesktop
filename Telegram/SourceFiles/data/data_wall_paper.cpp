@@ -82,8 +82,8 @@ QString StringFromColor(QColor color) {
 		const auto hex = [](int value) {
 			value = std::clamp(value, 0, 15);
 			return (value > 9)
-				? ('a' + (value - 10))
-				: ('0' + value);
+				? QChar('a' + (value - 10))
+				: QChar('0' + value);
 		};
 		return QString() + hex(value / 16) + hex(value % 16);
 	};
