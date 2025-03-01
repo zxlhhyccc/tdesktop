@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_main_window.h"
 #include "base/unique_qptr.h"
 
+class QMenuBar;
+
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
@@ -19,43 +21,23 @@ namespace Platform {
 class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
-
-	void psShowTrayMenu();
-
-	bool trayAvailable() {
-		return _sniAvailable || QSystemTrayIcon::isSystemTrayAvailable();
-	}
-
-	bool isActiveForTrayMenu() override;
-
 	~MainWindow();
 
+	void updateWindowIcon() override;
+
 protected:
-	void initHook() override;
+	bool eventFilter(QObject *obj, QEvent *evt) override;
+
 	void unreadCounterChangedHook() override;
 	void updateGlobalMenuHook() override;
-
-	void initTrayMenuHook() override;
-	bool hasTrayIcon() const override;
 
 	void workmodeUpdated(Core::Settings::WorkMode mode) override;
 	void createGlobalMenu() override;
 
-	QSystemTrayIcon *trayIcon = nullptr;
-	QMenu *trayIconMenu = nullptr;
-
-	void psTrayMenuUpdated();
-	void psSetupTrayIcon();
-
 private:
-	class Private;
-	friend class Private;
-	const std::unique_ptr<Private> _private;
+	void updateUnityCounter();
 
-	bool _sniAvailable = false;
-	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
-
-	QMenu *psMainMenu = nullptr;
+	QMenuBar *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;
 	QAction *psUndo = nullptr;
 	QAction *psRedo = nullptr;
@@ -73,12 +55,16 @@ private:
 	QAction *psItalic = nullptr;
 	QAction *psUnderline = nullptr;
 	QAction *psStrikeOut = nullptr;
+	QAction *psBlockquote = nullptr;
 	QAction *psMonospace = nullptr;
 	QAction *psClearFormat = nullptr;
 
-	void updateIconCounters();
-	void handleNativeSurfaceChanged(bool exist);
+	bool _exposed = false;
 
 };
+
+[[nodiscard]] inline int32 ScreenNameChecksum(const QString &name) {
+	return Window::DefaultScreenNameChecksum(name);
+}
 
 } // namespace Platform

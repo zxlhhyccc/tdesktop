@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_streaming.h"
 #include "data/data_file_click_handler.h"
+#include "base/options.h"
 #include "base/random.h"
+#include "base/power_save_blocker.h"
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_capture.h"
 #include "media/streaming/media_streaming_instance.h"
@@ -23,14 +25,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "data/data_media_types.h"
 #include "data/data_file_origin.h"
-#include "window/window_session_controller.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
-#include "main/main_domain.h" // Domain::activeSessionValue.
+#include "core/core_settings.h"
+#include "window/window_controller.h"
 #include "mainwindow.h"
+#include "main/main_domain.h" // Domain::activeSessionValue.
 #include "main/main_session.h"
 #include "main/main_account.h" // session->account().sessionChanges().
 #include "main/main_session_settings.h"
+#include "storage/storage_account.h"
 
 namespace Media {
 namespace Player {
@@ -47,13 +51,19 @@ constexpr auto kIdsPreloadAfter = 28;
 constexpr auto kShufflePlaylistLimit = 10'000;
 constexpr auto kRememberShuffledOrderItems = 16;
 
-constexpr auto kMinLengthForSavePosition = 20 * TimeId(60); // 20 minutes.
+constexpr auto kMinLengthForSavePositionVideo = TimeId(60); // 1 minute.
+constexpr auto kMinLengthForSavePositionMusic = 20 * TimeId(60); // 20.
 
-auto VoicePlaybackSpeed() {
-	return std::clamp(Core::App().settings().voicePlaybackSpeed(), 0.6, 1.7);
-}
+base::options::toggle OptionDisableAutoplayNext({
+	.id = kOptionDisableAutoplayNext,
+	.name = "Disable auto-play of the next track",
+	.description = "Disable auto-play of the next "
+		"Audio file / Voice Message / Video message.",
+});
 
 } // namespace
+
+const char kOptionDisableAutoplayNext[] = "disable-autoplay-next";
 
 struct Instance::Streamed {
 	Streamed(
@@ -74,6 +84,7 @@ struct Instance::ShuffleData {
 	std::vector<UniversalMsgId> nonPlayedIds;
 	std::vector<UniversalMsgId> playedIds;
 	History *history = nullptr;
+	MsgId topicRootId = 0;
 	History *migrated = nullptr;
 	bool scheduled = false;
 	int indexInPlayedIds = 0;
@@ -99,18 +110,20 @@ void finish(not_null<Audio::Instance*> instance) {
 void SaveLastPlaybackPosition(
 		not_null<DocumentData*> document,
 		const TrackState &state) {
+	const auto limit = document->isVideoFile()
+		? kMinLengthForSavePositionVideo
+		: kMinLengthForSavePositionMusic;
 	const auto time = (state.position == kTimeUnknown
 		|| state.length == kTimeUnknown
 		|| state.state == State::PausedAtEnd
 		|| IsStopped(state.state))
 		? TimeId(0)
-		: (state.length >= kMinLengthForSavePosition * state.frequency)
+		: (state.length >= limit * state.frequency)
 		? (state.position / state.frequency) * crl::time(1000)
 		: TimeId(0);
 	auto &session = document->session();
-	if (session.settings().mediaLastPlaybackPosition(document->id) != time) {
-		session.settings().setMediaLastPlaybackPosition(document->id, time);
-		session.saveSettingsDelayed();
+	if (session.local().mediaLastPlaybackPosition(document->id) != time) {
+		session.local().setMediaLastPlaybackPosition(document->id, time);
 	}
 }
 
@@ -133,9 +146,10 @@ Instance::Data::~Data() = default;
 Instance::Instance()
 : _songData(AudioMsgId::Type::Song, SharedMediaType::MusicFile)
 , _voiceData(AudioMsgId::Type::Voice, SharedMediaType::RoundVoiceFile) {
-	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
+	Media::Player::Updated(
+	) | rpl::start_with_next([=](const AudioMsgId &audioId) {
 		handleSongUpdate(audioId);
-	});
+	}, _lifetime);
 
 	repeatChanges(
 		&_songData
@@ -144,6 +158,7 @@ Instance::Instance()
 			refreshPlaylist(&_songData);
 		}
 	}, _lifetime);
+
 	orderChanges(
 		&_songData
 	) | rpl::start_with_next([=](OrderMode mode) {
@@ -215,23 +230,28 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 		if (item) {
 			setHistory(data, item->history());
 		} else {
-			data->history = nullptr;
-			data->migrated = nullptr;
-			data->session = nullptr;
+			setHistory(
+				data,
+				nullptr,
+				audioId.audio() ? &audioId.audio()->session() : nullptr);
 		}
 		_trackChanged.fire_copy(data->type);
 		refreshPlaylist(data);
 	}
 }
 
-void Instance::setHistory(not_null<Data*> data, History *history) {
+void Instance::setHistory(
+		not_null<Data*> data,
+		History *history,
+		Main::Session *sessionFallback) {
 	if (history) {
 		data->history = history->migrateToOrMe();
+		data->topicRootId = 0;
 		data->migrated = data->history->migrateFrom();
 		setSession(data, &history->session());
 	} else {
 		data->history = data->migrated = nullptr;
-		setSession(data, nullptr);
+		setSession(data, sessionFallback);
 	}
 }
 
@@ -248,6 +268,18 @@ void Instance::setSession(not_null<Data*> data, Main::Session *session) {
 		) | rpl::start_with_next([=] {
 			setSession(data, nullptr);
 		}, data->sessionLifetime);
+
+		session->data().documentLoadProgress(
+		) | rpl::filter([=](not_null<DocumentData*> document) {
+			// Before refactoring it was called only for audio files.
+			return document->isAudioFile();
+		}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+			const auto type = AudioMsgId::Type::Song;
+			emitUpdate(type, [&](const AudioMsgId &audioId) {
+				return (audioId.audio() == document);
+			});
+		}, data->sessionLifetime);
+
 		session->data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return (data->current.contextId() == item->fullId());
@@ -276,12 +308,7 @@ void Instance::clearStreamed(not_null<Data*> data, bool savePosition) {
 	data->streamed = nullptr;
 
 	_roundPlaying = false;
-	if (const auto window = App::wnd()) {
-		if (const auto controller = window->sessionController()) {
-			controller->disableGifPauseReason(
-				Window::GifPauseReason::RoundPlaying);
-		}
-	}
+	Core::App().floatPlayerToggleGifsPaused(false);
 }
 
 void Instance::refreshPlaylist(not_null<Data*> data) {
@@ -321,8 +348,8 @@ bool Instance::validPlaylist(not_null<const Data*> data) const {
 		using Key = SliceKey;
 		const auto inSameDomain = [](const Key &a, const Key &b) {
 			return (a.peerId == b.peerId)
-				&& (a.migratedPeerId == b.migratedPeerId)
-				&& (a.scheduled == b.scheduled);
+				&& (a.topicRootId == b.topicRootId)
+				&& (a.migratedPeerId == b.migratedPeerId);
 		};
 		const auto countDistanceInData = [&](const Key &a, const Key &b) {
 			return [&](const SparseIdsMergedSlice &data) {
@@ -354,7 +381,8 @@ void Instance::validatePlaylist(not_null<Data*> data) {
 	if (const auto key = playlistKey(data)) {
 		data->playlistRequestedKey = key;
 
-		const auto sharedMediaViewer = key->scheduled
+		const auto sharedMediaViewer = (key->topicRootId
+			== SparseIdsMergedSlice::kScheduledTopicId)
 			? SharedScheduledMediaViewer
 			: SharedMediaMergedViewer;
 		sharedMediaViewer(
@@ -386,14 +414,16 @@ auto Instance::playlistKey(not_null<const Data*> data) const
 		return {};
 	}
 
-	const auto universalId = (contextId.channel == history->channelId())
+	const auto universalId = (contextId.peer == history->peer->id)
 		? contextId.msg
 		: (contextId.msg - ServerMaxMsgId);
 	return SliceKey(
 		data->history->peer->id,
+		(item->isScheduled()
+			? SparseIdsMergedSlice::kScheduledTopicId
+			: data->topicRootId),
 		data->migrated ? data->migrated->peer->id : 0,
-		universalId,
-		item->isScheduled());
+		universalId);
 }
 
 bool Instance::validOtherPlaylist(not_null<const Data*> data) const {
@@ -448,13 +478,13 @@ auto Instance::playlistOtherKey(not_null<const Data*> data) const
 
 	return SliceKey(
 		data->history->peer->id,
+		data->topicRootId,
 		data->migrated ? data->migrated->peer->id : 0,
 		(data->playlistSlice->skippedBefore() == 0
 			? ServerMaxMsgId - 1
 			: data->migrated
 			? (1 - ServerMaxMsgId)
-			: 1),
-		false);
+			: 1));
 }
 
 HistoryItem *Instance::itemByIndex(not_null<Data*> data, int index) {
@@ -477,6 +507,9 @@ bool Instance::moveInPlaylist(
 	}
 	const auto jumpByItem = [&](not_null<HistoryItem*> item) {
 		if (const auto media = item->media()) {
+			if (media->ttlSeconds()) {
+				return false;
+			}
 			if (const auto document = media->document()) {
 				if (autonext) {
 					_switchToNext.fire({
@@ -506,9 +539,9 @@ bool Instance::moveInPlaylist(
 		}
 		const auto universal = computeCurrentUniversalId(data);
 		const auto byUniversal = [&](ShuffleData::UniversalMsgId id) {
-			return (id < 0)
-				? jumpById({ ChannelId(), id + ServerMaxMsgId })
-				: jumpById({ raw->history->channelId(), id });
+			return (id < 0 && raw->migrated)
+				? jumpById({ raw->migrated->peer->id, id + ServerMaxMsgId })
+				: jumpById({ raw->history->peer->id, id });
 		};
 		if (universal && raw->indexInPlayedIds == raw->playedIds.size()) {
 			raw->playedIds.push_back(universal);
@@ -566,6 +599,32 @@ bool Instance::moveInPlaylist(
 		}
 	}
 	return false;
+}
+
+void Instance::updatePowerSaveBlocker(
+		not_null<Data*> data,
+		const TrackState &state) {
+	const auto block = !IsPausedOrPausing(state.state)
+		&& !IsStoppedOrStopping(state.state);
+	const auto blockVideo = block
+		&& data->current.audio()
+		&& data->current.audio()->isVideoMessage();
+	const auto windowResolver = [] {
+		const auto window = Core::App().activeWindow();
+		return window ? window->widget()->windowHandle() : nullptr;
+	};
+	base::UpdatePowerSaveBlocker(
+		data->powerSaveBlocker,
+		block,
+		base::PowerSaveBlockType::PreventAppSuspension,
+		[] { return u"Audio playback is active"_q; },
+		windowResolver);
+	base::UpdatePowerSaveBlocker(
+		data->powerSaveBlockerVideo,
+		blockVideo,
+		base::PowerSaveBlockType::PreventDisplaySleep,
+		[] { return u"Video playback is active"_q; },
+		windowResolver);
 }
 
 void Instance::ensureShuffleMove(not_null<Data*> data, int delta) {
@@ -703,6 +762,7 @@ auto Media::Player::Instance::seekingChanges(AudioMsgId::Type type) const
 
 not_null<Instance*> instance() {
 	Expects(SingleInstance != nullptr);
+
 	return SingleInstance;
 }
 
@@ -787,15 +847,15 @@ Streaming::PlaybackOptions Instance::streamingOptions(
 		? Streaming::Mode::Both
 		: Streaming::Mode::Audio;
 	result.speed = audioId.changeablePlaybackSpeed()
-		? VoicePlaybackSpeed()
+		? Core::App().settings().voicePlaybackSpeed()
 		: 1.;
 	result.audioId = audioId;
 	if (position >= 0) {
 		result.position = position;
 	} else if (document) {
-		auto &settings = document->session().settings();
-		result.position = settings.mediaLastPlaybackPosition(document->id);
-		settings.setMediaLastPlaybackPosition(document->id, 0);
+		auto &local = document->session().local();
+		result.position = local.mediaLastPlaybackPosition(document->id);
+		local.setMediaLastPlaybackPosition(document->id, 0);
 	} else {
 		result.position = 0;
 	}
@@ -813,13 +873,16 @@ void Instance::pause(AudioMsgId::Type type) {
 	}
 }
 
-void Instance::stop(AudioMsgId::Type type) {
+void Instance::stop(AudioMsgId::Type type, bool asFinished) {
 	if (const auto data = getData(type)) {
 		if (data->streamed) {
 			clearStreamed(data);
 		}
 		data->resumeOnCallEnd = false;
 		_playerStopped.fire_copy({type});
+	}
+	if (asFinished) {
+		_tracksFinished.fire_copy(type);
 	}
 }
 
@@ -838,8 +901,10 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 	}
 	const auto raw = data->shuffleData.get();
 	const auto key = playlistKey(data);
-	const auto scheduled = key && key->scheduled;
+	const auto scheduled = key
+		&& (key->topicRootId == SparseIdsMergedSlice::kScheduledTopicId);
 	if (raw->history != data->history
+		|| raw->topicRootId != data->topicRootId
 		|| raw->migrated != data->migrated
 		|| raw->scheduled != scheduled) {
 		raw->history = data->history;
@@ -896,9 +961,9 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 		SharedMediaMergedKey(
 			SliceKey(
 				raw->history->peer->id,
+				raw->topicRootId,
 				raw->migrated ? raw->migrated->peer->id : 0,
-				last,
-				false),
+				last),
 			data->overview),
 		kIdsLimit,
 		kIdsLimit
@@ -906,12 +971,12 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 		raw->nextSliceLifetime.destroy();
 
 		const auto size = update.size();
-		const auto channel = raw->history->channelId();
+		const auto peer = raw->history->peer->id;
 		raw->playlist.reserve(raw->playlist.size() + size);
 		raw->nonPlayedIds.reserve(raw->nonPlayedIds.size() + size);
 		for (auto i = size; i != 0;) {
 			const auto fullId = update[--i];
-			const auto universal = (fullId.channel == channel)
+			const auto universal = (fullId.peer == peer)
 				? fullId.msg
 				: (fullId.msg - ServerMaxMsgId);
 			if (raw->playlist.empty() || raw->playlist.back() > universal) {
@@ -1081,18 +1146,10 @@ void Instance::updateVoicePlaybackSpeed() {
 			return;
 		}
 		if (const auto streamed = data->streamed.get()) {
-			streamed->instance.setSpeed(VoicePlaybackSpeed());
+			streamed->instance.setSpeed(
+				Core::App().settings().voicePlaybackSpeed());
 		}
 	}
-}
-
-void Instance::documentLoadProgress(DocumentData *document) {
-	const auto type = document->isAudioFile()
-		? AudioMsgId::Type::Song
-		: AudioMsgId::Type::Voice;
-	emitUpdate(type, [&](const AudioMsgId &audioId) {
-		return (audioId.audio() == document);
-	});
 }
 
 void Instance::emitUpdate(AudioMsgId::Type type) {
@@ -1150,6 +1207,21 @@ Streaming::Instance *Instance::roundVideoStreamed(HistoryItem *item) const {
 	return nullptr;
 }
 
+Streaming::Instance *Instance::roundVideoPreview(
+		not_null<DocumentData*> document) const {
+	if (const auto data = getData(AudioMsgId::Type::Voice)) {
+		if (const auto streamed = data->streamed.get()) {
+			if (streamed->id.audio() == document) {
+				const auto player = &streamed->instance.player();
+				if (player->ready() && !player->videoSize().isEmpty()) {
+					return &streamed->instance;
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
 View::PlaybackProgress *Instance::roundVideoPlayback(
 		HistoryItem *item) const {
 	return roundVideoStreamed(item)
@@ -1170,11 +1242,15 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 				streamed->progress.updateState(state);
 			}
 		}
+		updatePowerSaveBlocker(data, state);
+
 		auto finished = false;
 		_updatedNotifier.fire_copy({state});
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {
 			if (repeat(data) == RepeatMode::One) {
 				play(data->current);
+			} else if (OptionDisableAutoplayNext.value()) {
+				finished = true;
 			} else if (!moveInPlaylist(data, 1, true)) {
 				finished = true;
 			}
@@ -1217,8 +1293,13 @@ void Instance::setupShortcuts() {
 	}, _lifetime);
 }
 
-bool Instance::pauseGifByRoundVideo() const {
-	return _roundPlaying;
+void Instance::stopAndClose() {
+	_closePlayerRequests.fire({});
+
+	stop(AudioMsgId::Type::Voice);
+	stop(AudioMsgId::Type::Song);
+
+	Shortcuts::ToggleMediaShortcuts(false);
 }
 
 void Instance::handleStreamingUpdate(
@@ -1226,7 +1307,7 @@ void Instance::handleStreamingUpdate(
 		Streaming::Update &&update) {
 	using namespace Streaming;
 
-	v::match(update.data, [&](Information &update) {
+	v::match(update.data, [&](const Information &update) {
 		if (!update.video.size.isEmpty()) {
 			data->streamed->progress.setValueChangedCallback([=](
 					float64,
@@ -1234,25 +1315,21 @@ void Instance::handleStreamingUpdate(
 				requestRoundVideoRepaint();
 			});
 			_roundPlaying = true;
-			if (const auto window = App::wnd()) {
-				if (const auto controller = window->sessionController()) {
-					controller->enableGifPauseReason(
-						Window::GifPauseReason::RoundPlaying);
-				}
-			}
+			Core::App().floatPlayerToggleGifsPaused(true);
 			requestRoundVideoResize();
 		}
 		emitUpdate(data->type);
-	}, [&](PreloadedVideo &update) {
+	}, [&](PreloadedVideo) {
 		//emitUpdate(data->type, [](AudioMsgId) { return true; });
-	}, [&](UpdateVideo &update) {
+	}, [&](UpdateVideo) {
 		emitUpdate(data->type);
-	}, [&](PreloadedAudio &update) {
+	}, [&](PreloadedAudio) {
 		//emitUpdate(data->type, [](AudioMsgId) { return true; });
-	}, [&](UpdateAudio &update) {
+	}, [&](UpdateAudio) {
 		emitUpdate(data->type);
-	}, [&](WaitingForData) {
-	}, [&](MutedByOther) {
+	}, [](WaitingForData) {
+	}, [](SpeedEstimate) {
+	}, [](MutedByOther) {
 	}, [&](Finished) {
 		emitUpdate(data->type);
 		if (data->streamed && data->streamed->instance.player().finished()) {
@@ -1290,12 +1367,12 @@ void Instance::handleStreamingError(
 	const auto document = data->streamed->id.audio();
 	const auto contextId = data->streamed->id.contextId();
 	if (error == Streaming::Error::NotStreamable) {
-		DocumentSaveClickHandler::Save(
-			(contextId ? contextId : ::Data::FileOrigin()),
+		DocumentSaveClickHandler::SaveAndTrack(
+			contextId,
 			document);
 	} else if (error == Streaming::Error::OpenFailed) {
-		DocumentSaveClickHandler::Save(
-			(contextId ? contextId : ::Data::FileOrigin()),
+		DocumentSaveClickHandler::SaveAndTrack(
+			contextId,
 			document,
 			DocumentSaveClickHandler::Mode::ToFile);
 	}

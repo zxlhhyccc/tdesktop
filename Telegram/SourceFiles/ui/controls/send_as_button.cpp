@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/send_as_button.h"
 
 #include "ui/effects/cross_animation.h"
+#include "ui/painter.h"
 #include "styles/style_chat.h"
 
 namespace Ui {
@@ -17,7 +18,6 @@ SendAsButton::SendAsButton(QWidget *parent, const style::SendAsButton &st)
 , _st(st) {
 	resize(_st.width, _st.height);
 }
-
 
 void SendAsButton::setUserpic(QImage userpic) {
 	_userpic = std::move(userpic);
@@ -37,14 +37,14 @@ void SendAsButton::setActive(bool active) {
 }
 
 void SendAsButton::paintEvent(QPaintEvent *e) {
-	auto p = Painter(this);
+	auto p = QPainter(this);
 
 	const auto left = (width() - _st.size) / 2;
 	const auto top = (height() - _st.size) / 2;
 
 	const auto active = _activeAnimation.value(_active ? 1. : 0.);
 	if (active < 1. && !_userpic.isNull()) {
-		p.drawImage(left, top, _userpic);
+		p.drawImage(QRect(left, top, _st.size, _st.size), _userpic);
 	}
 	if (active > 0.) {
 		p.setOpacity(active);
