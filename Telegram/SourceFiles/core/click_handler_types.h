@@ -8,8 +8,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/basic_click_handlers.h"
+#include "data/data_msg_id.h"
 
 constexpr auto kPeerLinkPeerIdProperty = 0x01;
+constexpr auto kPhotoLinkMediaProperty = 0x02;
+constexpr auto kDocumentLinkMediaProperty = 0x03;
+constexpr auto kSendReactionEmojiProperty = 0x04;
+constexpr auto kReactionsCountEmojiProperty = 0x05;
+constexpr auto kDocumentFilenameTooltipProperty = 0x06;
+constexpr auto kPhoneNumberLinkProperty = 0x07;
+
+namespace Ui {
+class Show;
+} // namespace Ui
+
+namespace InlineBots {
+struct WebViewContext;
+} // namespace InlineBots
 
 namespace Main {
 class Session;
@@ -31,11 +46,19 @@ struct ClickHandlerContext {
 	// Is filled from sections.
 	Fn<HistoryView::ElementDelegate*()> elementDelegate;
 	base::weak_ptr<Window::SessionController> sessionWindow;
+	std::shared_ptr<InlineBots::WebViewContext> botWebviewContext;
+	std::shared_ptr<Ui::Show> show;
+	bool mayShowConfirmation = false;
 	bool skipBotAutoLogin = false;
+	bool botStartAutoSubmit = false;
+	bool ignoreIv = false;
+	bool dark = false;
 	// Is filled from peer info.
 	PeerData *peer = nullptr;
 };
 Q_DECLARE_METATYPE(ClickHandlerContext);
+
+class PhoneClickHandler;
 
 class HiddenUrlClickHandler : public UrlClickHandler {
 public:
@@ -193,5 +216,22 @@ protected:
 
 private:
 	QString _cmd;
+
+};
+
+class MonospaceClickHandler : public TextClickHandler {
+public:
+	MonospaceClickHandler(const QString &text, EntityType type);
+
+	void onClick(ClickContext context) const override;
+
+	TextEntity getTextEntity() const override;
+
+protected:
+	QString url() const override;
+
+private:
+	const QString _text;
+	const TextEntity _entity;
 
 };

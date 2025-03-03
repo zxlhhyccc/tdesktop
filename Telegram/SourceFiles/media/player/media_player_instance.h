@@ -12,6 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class AudioMsgId;
 class DocumentData;
+class History;
+
+namespace Media {
+enum class RepeatMode;
+enum class OrderMode;
+} // namespace Media
 
 namespace Media {
 namespace Audio {
@@ -35,20 +41,14 @@ enum class Error;
 } // namespace Streaming
 } // namespace Media
 
+namespace base {
+class PowerSaveBlocker;
+} // namespace base
+
 namespace Media {
 namespace Player {
 
-enum class RepeatMode {
-	None,
-	One,
-	All,
-};
-
-enum class OrderMode {
-	Default,
-	Reverse,
-	Shuffle,
-};
+extern const char kOptionDisableAutoplayNext[];
 
 class Instance;
 struct TrackState;
@@ -62,7 +62,7 @@ void SaveLastPlaybackPosition(
 
 not_null<Instance*> instance();
 
-class Instance : private base::Subscriber {
+class Instance final {
 public:
 	enum class Seeking {
 		Start,
@@ -72,7 +72,7 @@ public:
 
 	void play(AudioMsgId::Type type);
 	void pause(AudioMsgId::Type type);
-	void stop(AudioMsgId::Type type);
+	void stop(AudioMsgId::Type type, bool asFinished = false);
 	void playPause(AudioMsgId::Type type);
 	bool next(AudioMsgId::Type type);
 	bool previous(AudioMsgId::Type type);
@@ -108,6 +108,9 @@ public:
 		HistoryItem *item) const;
 	[[nodiscard]] View::PlaybackProgress *roundVideoPlayback(
 		HistoryItem *item) const;
+
+	[[nodiscard]] Streaming::Instance *roundVideoPreview(
+		not_null<DocumentData*> document) const;
 
 	[[nodiscard]] AudioMsgId current(AudioMsgId::Type type) const {
 		if (const auto data = getData(type)) {
@@ -159,9 +162,10 @@ public:
 	[[nodiscard]] rpl::producer<Seeking> seekingChanges(
 		AudioMsgId::Type type) const;
 
-	[[nodiscard]] bool pauseGifByRoundVideo() const;
-
-	void documentLoadProgress(DocumentData *document);
+	[[nodiscard]] rpl::producer<> closePlayerRequests() const {
+		return _closePlayerRequests.events();
+	}
+	void stopAndClose();
 
 private:
 	using SharedMediaType = Storage::SharedMediaType;
@@ -189,12 +193,15 @@ private:
 		rpl::lifetime sessionLifetime;
 		rpl::event_stream<> playlistChanges;
 		History *history = nullptr;
+		MsgId topicRootId = 0;
 		History *migrated = nullptr;
 		Main::Session *session = nullptr;
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
 		std::unique_ptr<Streamed> streamed;
 		std::unique_ptr<ShuffleData> shuffleData;
+		std::unique_ptr<base::PowerSaveBlocker> powerSaveBlocker;
+		std::unique_ptr<base::PowerSaveBlocker> powerSaveBlockerVideo;
 	};
 
 	struct SeekingChanges {
@@ -234,6 +241,9 @@ private:
 	void validateOtherPlaylist(not_null<Data*> data);
 	void playlistUpdated(not_null<Data*> data);
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
+	void updatePowerSaveBlocker(
+		not_null<Data*> data,
+		const TrackState &state);
 	HistoryItem *itemByIndex(not_null<Data*> data, int index);
 	void stopAndClear(not_null<Data*> data);
 
@@ -284,7 +294,10 @@ private:
 	void requestRoundVideoResize() const;
 	void requestRoundVideoRepaint() const;
 
-	void setHistory(not_null<Data*> data, History *history);
+	void setHistory(
+		not_null<Data*> data,
+		History *history,
+		Main::Session *sessionFallback = nullptr);
 	void setSession(not_null<Data*> data, Main::Session *session);
 
 	Data _songData;
@@ -298,6 +311,7 @@ private:
 	rpl::event_stream<AudioMsgId::Type> _playerStartedPlay;
 	rpl::event_stream<TrackState> _updatedNotifier;
 	rpl::event_stream<SeekingChanges> _seekingChanges;
+	rpl::event_stream<> _closePlayerRequests;
 	rpl::lifetime _lifetime;
 
 };

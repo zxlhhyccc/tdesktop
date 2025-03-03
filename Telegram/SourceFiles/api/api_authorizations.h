@@ -21,8 +21,10 @@ public:
 		uint64 hash = 0;
 
 		bool incomplete = false;
+		bool callsDisabled = false;
+		int apiId = 0;
 		TimeId activeTime = 0;
-		QString name, active, info, ip, location, system;
+		QString name, active, info, ip, location, system, platform;
 	};
 	using List = std::vector<Entry>;
 
@@ -36,9 +38,9 @@ public:
 	[[nodiscard]] crl::time lastReceivedTime();
 
 	[[nodiscard]] List list() const;
-	[[nodiscard]] rpl::producer<List> listChanges() const;
+	[[nodiscard]] rpl::producer<List> listValue() const;
 	[[nodiscard]] int total() const;
-	[[nodiscard]] rpl::producer<int> totalChanges() const;
+	[[nodiscard]] rpl::producer<int> totalValue() const;
 
 	void updateTTL(int days);
 	[[nodiscard]] rpl::producer<int> ttlDays() const;
@@ -51,7 +53,11 @@ public:
 	[[nodiscard]] rpl::producer<bool> callsDisabledHereValue() const;
 	[[nodiscard]] rpl::producer<bool> callsDisabledHereChanges() const;
 
+	[[nodiscard]] static QString ActiveDateString(TimeId active);
+
 private:
+	void refreshCallsDisabledHereFromCloud();
+
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 
